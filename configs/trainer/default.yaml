@@ -13,3 +13,6 @@ check_val_every_n_epoch: 1
 # set True to to ensure deterministic results
 # makes training slower but gives more reproducibility than just setting seeds
 deterministic: False
+
+enable_progress_bar: true        # must be true if any progress bar is used
+num_sanity_val_steps: 0          # set 0 if you don't actually have a val dataloader

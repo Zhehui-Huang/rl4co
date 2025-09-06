@@ -4,3 +4,6 @@
 # Look at the above link for more detailed information.
 rich_progress_bar:
   _target_: lightning.pytorch.callbacks.RichProgressBar
+
+#  console_kwargs:
+#    force_terminal: true         # force Rich even in PyCharm/VSCode/W&B capture

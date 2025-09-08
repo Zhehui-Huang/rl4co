@@ -49,13 +49,8 @@ class TSPGenerator(Generator):
             )
 
     def _generate(self, batch_size) -> TensorDict:
-        # Vary num_loc from num_loc-5 to num_loc+5
-        min_num_loc = max(5, self.num_loc - 5)  # Ensure at least 1 location
-        max_num_loc = self.num_loc + 5
-        actual_num_loc = torch.randint(min_num_loc, max_num_loc + 1, (1,)).item()
-        
         # Sample locations
-        locs = self.loc_sampler.sample((*batch_size, actual_num_loc, 2))
+        locs = self.loc_sampler.sample((*batch_size, self.num_loc, 2))
 
         return TensorDict(
             {
@@ -67,27 +62,26 @@ class TSPGenerator(Generator):
     # for improvement MDP only (to be refactored by a combination of rollout and the random policy)
     def _get_initial_solutions(self, coordinates):
         batch_size = coordinates.size(0)
-        actual_num_loc = coordinates.size(1)
 
         if self.init_sol_type == "random":
-            set = torch.rand(batch_size, actual_num_loc).argsort().long()
-            rec = torch.zeros(batch_size, actual_num_loc).long()
+            set = torch.rand(batch_size, self.num_loc).argsort().long()
+            rec = torch.zeros(batch_size, self.num_loc).long()
             index = torch.zeros(batch_size, 1).long()
 
-            for i in range(actual_num_loc - 1):
+            for i in range(self.num_loc - 1):
                 rec.scatter_(1, set.gather(1, index + i), set.gather(1, index + i + 1))
 
             rec.scatter_(1, set[:, -1].view(-1, 1), set.gather(1, index))
 
         elif self.init_sol_type == "greedy":
-            candidates = torch.ones(batch_size, actual_num_loc).bool()
-            rec = torch.zeros(batch_size, actual_num_loc).long()
+            candidates = torch.ones(batch_size, self.num_loc).bool()
+            rec = torch.zeros(batch_size, self.num_loc).long()
             selected_node = torch.zeros(batch_size, 1).long()
             candidates.scatter_(1, selected_node, 0)
 
-            for i in range(actual_num_loc - 1):
+            for i in range(self.num_loc - 1):
                 d1 = coordinates.cpu().gather(
-                    1, selected_node.unsqueeze(-1).expand(batch_size, actual_num_loc, 2)
+                    1, selected_node.unsqueeze(-1).expand(batch_size, self.num_loc, 2)
                 )
                 d2 = coordinates.cpu()
 
@@ -102,4 +96,4 @@ class TSPGenerator(Generator):
         else:
             raise NotImplementedError()
 
-        return rec.expand(batch_size, actual_num_loc).clone()
+        return rec.expand(batch_size, self.num_loc).clone()

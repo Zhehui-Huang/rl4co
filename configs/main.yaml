@@ -8,13 +8,15 @@ defaults:
   - extras: default.yaml
   - model: default.yaml # TODO: Need to create a separate file and override it here
   - env: default.yaml # TODO: Need to create a separate file and override it here
-  - experiment: base_v1.yaml
+  - experiment: tsp-stepwise-ppo.yaml
+#  - experiment: base_v1.yaml
 
 
 seed: 1111
-mode: "train"
-train: True # set False to skip model training
+mode: "test"
+train: False # set False to skip model training
 test: True
 compile: False
-ckpt_path: null
+#ckpt_path: /home/ethan/repo/rl4co/logs/train/runs/tsp20/am-tsp20/2025-09-08_22-47-11/checkpoints/last.ckpt
+ckpt_path: /home/ethan/repo/rl4co/logs/train/runs/tsp20/ppo-tsp20/2025-09-08_21-51-28/checkpoints/epoch_005.ckpt
 tags: ["dev"]

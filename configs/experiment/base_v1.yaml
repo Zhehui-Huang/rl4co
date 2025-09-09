@@ -9,6 +9,7 @@ defaults:
   - override /env: tsp.yaml
   - override /trainer: default.yaml
   - override /logger: wandb.yaml
+  - override /callbacks: default.yaml
 
 env:
     name: "tsp"
@@ -34,7 +35,7 @@ model:
     log_on_step: True
 
 trainer:
-  max_epochs: 50
+  max_epochs: 2
   precision: "bf16-mixed"
   matmul_precision: "high"
   gradient_clip_val: 1.0
@@ -45,3 +46,7 @@ logger:
     tags: ["am", "tsp"]
     group: "tsp${env.generator_params.num_loc}"
     name: "am-tsp${env.generator_params.num_loc}"
+
+#model_checkpoint:
+#  dirpath: /home/ethan/repo/rl4co/logs/train/runs/tsp20/am-tsp20/2025-09-08_22-47-11/checkpoints
+#  filename: epoch_{epoch:03d}

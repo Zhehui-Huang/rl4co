@@ -8,6 +8,7 @@ import torch
 from lightning import Callback, LightningModule
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+from rl4co.envs.routing.tsp.env import TSPEnv
 
 from rl4co import utils
 from rl4co.utils import RL4COTrainer
@@ -77,15 +78,82 @@ def run(cfg: DictConfig) -> Tuple[dict, dict]:
         trainer.fit(model=model, ckpt_path=cfg.get("ckpt_path"))
 
         train_metrics = trainer.callback_metrics
+    else:
+        train_metrics = {}
 
     if cfg.get("test"):
         log.info("Starting testing!")
-        ckpt_path = trainer.checkpoint_callback.best_model_path
-        if ckpt_path == "":
-            log.warning("Best ckpt not found! Using current weights for testing...")
-            ckpt_path = None
-        trainer.test(model=model, ckpt_path=ckpt_path)
-        log.info(f"Best ckpt path: {ckpt_path}")
+        # Use the specified ckpt_path from config if available, otherwise try trainer's best model
+        ckpt_path = cfg.get("ckpt_path")
+        # if ckpt_path is None:
+        #     ckpt_path = trainer.checkpoint_callback.best_model_path
+        #     if ckpt_path == "":
+        #         log.warning("Best ckpt not found! Using current weights for testing...")
+        #         ckpt_path = None
+        # else:
+        #     log.info(f"Using specified checkpoint: {ckpt_path}")
+        # trainer.test(model=model, ckpt_path=ckpt_path)
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        env = TSPEnv(generator_params={'num_loc': 20})
+        # td_init = env.reset(batch_size=[3]).to(device)
+        # torch.save(td_init, "tsp20_testset.pt")
+        td_init = torch.load("tsp20_testset.pt", weights_only=False).to(device)
+
+        log.info(f"Checkpoint path used: {ckpt_path}")
+
+        model = type(model).load_from_checkpoint(
+            ckpt_path,
+            env=env,
+            policy=model.policy,  # 🔑 required since StepwisePPO expects this
+        )
+
+        model.to(device).eval()
+
+        # Get policy
+        policy = model.policy.to(device)
+
+        # Rollout solutions
+        out = policy(
+            td_init.clone(),
+            phase="test",
+            decode_type="greedy",
+            return_actions=True
+        )
+
+        actions = out["actions"].cpu()
+        rewards = out["reward"].cpu()
+
+        # Before training (random init model)
+        model_untrained = hydra.utils.instantiate(cfg.model, env=env).to(device).eval()
+        out_untrained = model_untrained.policy(td_init.clone(), phase="test", decode_type="greedy", return_actions=True)
+        actions_untrained = out_untrained["actions"].cpu()
+        rewards_untrained = out_untrained["reward"].cpu()
+
+        # # Visualize
+        import matplotlib.pyplot as plt
+        # for i, td in enumerate(td_init):
+        #     fig, axs = plt.subplots(1, 2, figsize=(11, 5))
+        #     env.render(td, actions[i], ax=axs[1])
+        #     axs[1].set_title(f"Trained policy | Cost = {-rewards[i].item():.3f}")
+        #     plt.show()
+        #
+        # # Before training (random init model)
+        # model_untrained = hydra.utils.instantiate(cfg.model, env=env).to(device).eval()
+        # out_untrained = model_untrained.policy(td_init.clone(), phase="test", decode_type="greedy", return_actions=True)
+        # actions_untrained = out_untrained["actions"].cpu()
+        # rewards_untrained = out_untrained["reward"].cpu()
+
+        # Then plot side by side
+        for i, td in enumerate(td_init):
+            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+            env.render(td, actions_untrained[i], ax=axs[0])
+            env.render(td, actions[i], ax=axs[1])
+            axs[0].set_title(f"Untrained | Cost = {-rewards_untrained[i].item():.3f}")
+            axs[1].set_title(f"Trained | Cost = {-rewards[i].item():.3f}")
+            plt.show()
+
 
     test_metrics = trainer.callback_metrics
 
